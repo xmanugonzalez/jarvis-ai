@@ -114,4 +114,17 @@ final class AudioSessionService {
             signature: route.inputs.map { "in:\($0.uid)" } + route.outputs.map { "out:\($0.uid)" }
         )
     }
+
+    func diagnosticDescription() -> String {
+        let route = session.currentRoute
+        func describe(_ ports: [AVAudioSessionPortDescription]) -> String {
+            guard !ports.isEmpty else { return "Sin puerto" }
+            return ports.map { "\($0.portName) [\($0.portType.rawValue)]" }.joined(separator: ", ")
+        }
+        return """
+        Entrada: \(describe(route.inputs))
+        Salida: \(describe(route.outputs))
+        Sesión: \(session.category.rawValue), \(session.mode.rawValue), \(session.sampleRate) Hz, activa: \(active)
+        """
+    }
 }

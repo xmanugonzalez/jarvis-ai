@@ -43,7 +43,8 @@ struct AssistantNotice: Equatable {
 
 enum AssistantError: LocalizedError, Equatable {
     case microphonePermission, speechPermission, speechRestricted
-    case speechUnavailable, offlineUnavailable, noInput, routeUnavailable
+    case speechUnavailable, unsupportedSpeechLanguage, offlineUnavailable, noInput, routeUnavailable
+    case captureChanged, speechTimedOut
     case recordingFailed, playbackFailed, noOutput, noSpanishVoice
 
     var errorDescription: String? {
@@ -52,6 +53,9 @@ enum AssistantError: LocalizedError, Equatable {
         case .speechPermission: "Permite el reconocimiento de voz en Ajustes para transcribir el audio."
         case .speechRestricted: "El reconocimiento de voz está restringido en este iPhone."
         case .speechUnavailable: "El reconocimiento no está disponible para este idioma. Comprueba la conexión o elige otra variante de español."
+        case .unsupportedSpeechLanguage: "Apple Speech no admite el idioma seleccionado en este iPhone. Elige otra variante de español."
+        case .captureChanged: "La configuración del micrófono cambió. Comprueba la ruta y vuelve a escuchar."
+        case .speechTimedOut: "Apple Speech tardó demasiado en cerrar la transcripción. Vuelve a intentarlo."
         case .offlineUnavailable: "Este idioma no admite reconocimiento local en este iPhone. Cambia de idioma o desactiva «Solo sin conexión»."
         case .noInput: "iOS no proporciona una entrada de audio en la ruta actual."
         case .routeUnavailable: "iOS no activó la entrada y salida manos libres. Comprueba el Bluetooth y vuelve a intentarlo."

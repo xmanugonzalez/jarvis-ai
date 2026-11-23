@@ -22,8 +22,8 @@ El runner estándar es gratuito en repositorios públicos. Si el repositorio es 
 
 1. Empareja y conecta el intercomunicador en **Ajustes → Bluetooth** de iOS. En JARVIS, abre **Bluetooth → Comprobar ruta**. Si iOS expone una ruta manos libres, comprueba que el casco aparece como entrada y salida. Una ruta de solo salida no confirma que el micrófono del casco esté disponible.
 2. Toca **Grabar prueba**, habla, termina la grabación y toca **Reproducir grabación**. Escucha el resultado en el casco. La grabación es temporal y se reemplaza al guardar una nueva toma.
-3. En **Inicio**, toca **Comenzar a escuchar**, concede los permisos y di «Hola, Jarvis». Toca **Terminar de hablar** o espera a que la transcripción deje de cambiar. Deberías ver el texto y escuchar «A sus órdenes, señor».
-4. En **Configuración**, elige una voz masculina que el iPhone ofrezca, ajusta el ritmo y prueba la voz. **Solo sin conexión** exige reconocimiento local del idioma seleccionado. Cuando ese ajuste está desactivado y el idioma carece de reconocimiento local, Speech puede usar el servicio de Apple.
+3. En **Inicio**, toca **Comenzar a escuchar**, concede los permisos y di «Hola, Jarvis». Toca **Terminar de hablar** cuando acabes. Deberías ver el texto y escuchar «A sus órdenes, señor». Si falla, abre **Configuración → Diagnóstico de reconocimiento** y copia el último error.
+4. En **Configuración**, elige una voz masculina que el iPhone ofrezca, ajusta el ritmo y prueba la voz. **Solo sin conexión** exige reconocimiento local del idioma seleccionado. Si lo desactivas, iOS puede usar el servicio de Apple.
 5. Desconecta el casco durante una prueba. JARVIS debe detener el audio si cambia la ruta. Reconecta y vuelve a comprobarla. Haz lo mismo después de una llamada que interrumpa la sesión.
 
 El nombre del casco y los perfiles disponibles dependen de iOS y del accesorio. **Preferir manos libres** solicita una entrada HFP cuando está disponible. Con esa preferencia desactivada, iOS decide la ruta. Las pruebas de instalación, micrófono del Y12 Pro y salida por el casco requieren un iPhone físico.

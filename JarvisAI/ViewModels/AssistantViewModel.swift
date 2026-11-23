@@ -1,6 +1,7 @@
 import AVFoundation
 import Combine
 import Foundation
+import OSLog
 
 @MainActor
 final class AssistantViewModel: ObservableObject {
@@ -12,6 +13,7 @@ final class AssistantViewModel: ObservableObject {
     @Published private(set) var hasRecording = false
     @Published private(set) var voices: [SpanishVoice] = []
     @Published private(set) var notice: AssistantNotice?
+    @Published private(set) var recognitionDiagnostic: String?
     @Published var settings: AssistantSettings {
         didSet { settings.save(to: defaults) }
     }
@@ -24,7 +26,7 @@ final class AssistantViewModel: ObservableObject {
     private var operationID: UUID?
     private var setup: Task<Void, Never>?
     private var deadline: Task<Void, Never>?
-    private var silence: Task<Void, Never>?
+    private let speechLogger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "JarvisAI", category: "Speech")
 
     var isIdle: Bool { state == .ready }
 
@@ -49,8 +51,9 @@ final class AssistantViewModel: ObservableObject {
         guard isIdle else { return }
         transcript = ""
         response = ""
-        recognitionMode = ""
-        begin { model, id in
+        recognitionMode = settings.offlineOnly ? "Local en el iPhone" : "Automático de Apple"
+        recognition.resetDiagnostics()
+        begin(diagnoseSpeech: true) { model, id in
             try await model.authorizeMicrophone()
             let status = await SpeechRecognitionService.authorize()
             try Task.checkCancellation()
@@ -58,10 +61,9 @@ final class AssistantViewModel: ObservableObject {
             guard status == .authorized else { throw AssistantError.speechPermission }
             try await model.activate()
             guard !model.route.inputs.isEmpty else { throw AssistantError.noInput }
-            let local = try model.recognition.start(settings: model.settings) { [weak model] event in
+            try model.recognition.start(settings: model.settings) { [weak model] event in
                 model?.handleRecognition(event, id: id)
             }
-            model.recognitionMode = local ? "En el iPhone" : "Con servicio de Apple"
             model.state = .listening
             model.setDeadline(.seconds(45)) { $0.finishListening() }
         }
@@ -70,9 +72,8 @@ final class AssistantViewModel: ObservableObject {
     func finishListening() {
         guard state == .listening else { return }
         state = .processing
-        silence?.cancel()
         recognition.finishInput()
-        setDeadline(.seconds(3)) { $0.answer() }
+        setDeadline(.seconds(10)) { $0.failRecognition(AssistantError.speechTimedOut) }
     }
 
     func previewVoice() {
@@ -129,6 +130,7 @@ final class AssistantViewModel: ObservableObject {
 
     private func begin(
         initialState: AssistantState = .preparing,
+        diagnoseSpeech: Bool = false,
         action: @escaping @MainActor (AssistantViewModel, UUID) async throws -> Void
     ) {
         guard isIdle else { return }
@@ -142,6 +144,7 @@ final class AssistantViewModel: ObservableObject {
                 try await action(self, id)
             } catch {
                 guard self.operationID == id else { return }
+                if diagnoseSpeech { self.recordRecognitionFailure(error) }
                 if let error = error as? AssistantError {
                     let needsSettings = error == .microphonePermission || error == .speechPermission
                     self.end(error.localizedDescription, openSettings: needsSettings)
@@ -169,31 +172,49 @@ final class AssistantViewModel: ObservableObject {
         guard operationID == id, state == .listening || state == .processing else { return }
         switch event {
         case .partial(let text):
-            guard text != transcript else { return }
-            transcript = text
-            guard state == .listening, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-            silence?.cancel()
-            silence = Task { [weak self] in
-                guard (try? await Task.sleep(for: .milliseconds(2400))) != nil,
-                      let self, self.operationID == id else { return }
-                self.finishListening()
-            }
+            if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { transcript = text }
         case .final(let text):
-            if !text.isEmpty { transcript = text }
+            if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { transcript = text }
             answer()
-        case .failed(let message):
-            if state == .processing, !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                answer()
-            } else {
-                end(message)
-            }
+        case .failed(let error, let partial):
+            if let partial, !partial.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { transcript = partial }
+            failRecognition(error)
         }
+    }
+
+    private func recordRecognitionFailure(_ error: Error) {
+        let original = error as NSError
+        let details = """
+        Dominio: \(original.domain)
+        Código: \(original.code)
+        Descripción: \(original.localizedDescription)
+        Estado: \(state.title) / \(recognition.taskStatus)
+        Idioma: \(settings.language.rawValue)
+        Método: \(recognitionMode)
+        Servicio: \(recognition.availabilityDescription)
+        \(audio.diagnosticDescription())
+        Formato: \(recognition.inputFormatDescription)
+        """
+        recognitionDiagnostic = details
+        speechLogger.error("\(original.domain, privacy: .public) [\(original.code, privacy: .public)] \(details, privacy: .private)")
+    }
+
+    private func failRecognition(_ error: Error) {
+        recordRecognitionFailure(error)
+        let message: String
+        if let error = error as? AssistantError {
+            message = error.localizedDescription
+        } else if (error as NSError).domain == NSURLErrorDomain {
+            message = "La conexión con Apple Speech falló. Comprueba internet y vuelve a intentarlo."
+        } else {
+            message = "Apple Speech interrumpió la escucha. Vuelve a intentarlo y consulta Configuración → Diagnóstico si vuelve a ocurrir."
+        }
+        end(transcript.isEmpty ? message : "\(message) Se conservó la transcripción parcial.")
     }
 
     private func answer() {
         deadline?.cancel()
-        silence?.cancel()
-        recognition.cancel()
+        recognition.complete()
         guard !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             end("No se detectó voz. Vuelve a intentarlo.")
             return
@@ -242,8 +263,6 @@ final class AssistantViewModel: ObservableObject {
         setup = nil
         deadline?.cancel()
         deadline = nil
-        silence?.cancel()
-        silence = nil
         recognition.cancel()
         audioTest.cancel()
         speech.cancel()
@@ -260,8 +279,13 @@ final class AssistantViewModel: ObservableObject {
             switch state {
             case .listening, .processing, .speaking, .recording, .playing:
                 if current.signature != route.signature {
+                    let wasRecognizing = state == .listening || state == .processing
                     route = current
-                    end("Cambió la ruta de audio. Comprueba los dispositivos y vuelve a intentarlo.")
+                    if wasRecognizing {
+                        failRecognition(AssistantError.captureChanged)
+                    } else {
+                        end("Cambió la ruta de audio. Comprueba los dispositivos y vuelve a intentarlo.")
+                    }
                 } else {
                     route = current
                 }

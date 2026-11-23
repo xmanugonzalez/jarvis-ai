@@ -25,7 +25,7 @@
     <key>NSMicrophoneUsageDescription</key>
     <string>JARVIS usa el micrófono para escuchar tu voz y grabar la prueba de audio.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
-    <string>JARVIS usa el reconocimiento de voz de Apple para convertir lo que dices en texto. Apple puede procesar el audio si el reconocimiento local no está disponible.</string>
+    <string>JARVIS usa el reconocimiento de voz de Apple para convertir lo que dices en texto. Si desactivas Solo sin conexión, Apple puede procesar el audio mediante su servicio.</string>
     <key>UILaunchScreen</key>
     <dict/>
     <key>UISupportedInterfaceOrientations</key>

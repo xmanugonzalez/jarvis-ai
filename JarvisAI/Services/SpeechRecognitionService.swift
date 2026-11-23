@@ -4,7 +4,7 @@ import Speech
 @MainActor
 final class SpeechRecognitionService {
     enum Event {
-        case partial(String), final(String), failed(String)
+        case partial(String), final(String), failed(Error, partial: String?)
     }
 
     private var engine: AVAudioEngine?
@@ -13,6 +13,20 @@ final class SpeechRecognitionService {
     private var task: SFSpeechRecognitionTask?
     private var configurationObserver: NSObjectProtocol?
     private var runID: UUID?
+    private(set) var inputFormatDescription = "Sin formato de captura"
+    private(set) var availabilityDescription = "Sin comprobar"
+
+    var taskStatus: String {
+        guard let task else { return "Sin tarea activa" }
+        switch task.state {
+        case .starting: return "Iniciando"
+        case .running: return "Reconociendo"
+        case .finishing: return "Finalizando"
+        case .canceling: return "Cancelando"
+        case .completed: return "Completada"
+        @unknown default: return "Estado \(task.state.rawValue)"
+        }
+    }
 
     static func authorize() async -> SFSpeechRecognizerAuthorizationStatus {
         let status = SFSpeechRecognizer.authorizationStatus()
@@ -22,49 +36,60 @@ final class SpeechRecognitionService {
         }
     }
 
-    func start(settings: AssistantSettings, onEvent: @escaping (Event) -> Void) throws -> Bool {
-        guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: settings.language.rawValue)) else {
-            throw AssistantError.speechUnavailable
+    func start(settings: AssistantSettings, onEvent: @escaping (Event) -> Void) throws {
+        let locale = Locale(identifier: settings.language.rawValue)
+        guard SFSpeechRecognizer.supportedLocales().contains(where: {
+            $0.identifier.replacingOccurrences(of: "_", with: "-").caseInsensitiveCompare(settings.language.rawValue) == .orderedSame
+        }),
+              let recognizer = SFSpeechRecognizer(locale: locale) else {
+            throw AssistantError.unsupportedSpeechLanguage
         }
-        let local = recognizer.supportsOnDeviceRecognition
-        if settings.offlineOnly && !local {
+        let supportsLocal = recognizer.supportsOnDeviceRecognition
+        let available = recognizer.isAvailable
+        availabilityDescription = "Disponible: \(available). Compatible con modo local: \(supportsLocal)."
+        if settings.offlineOnly && !supportsLocal {
             throw AssistantError.offlineUnavailable
         }
-        guard local || recognizer.isAvailable else { throw AssistantError.speechUnavailable }
+        guard available else { throw AssistantError.speechUnavailable }
 
         let engine = AVAudioEngine()
         let input = engine.inputNode
+        let hardwareFormat = input.inputFormat(forBus: 0)
         let format = input.outputFormat(forBus: 0)
-        guard format.sampleRate > 0, format.channelCount > 0 else { throw AssistantError.noInput }
+        inputFormatDescription = "Hardware: \(hardwareFormat). Captura: \(format)."
+        guard hardwareFormat.sampleRate > 0, hardwareFormat.channelCount > 0,
+              format.sampleRate > 0, format.channelCount > 0 else { throw AssistantError.noInput }
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
-        request.requiresOnDeviceRecognition = local
+        request.requiresOnDeviceRecognition = settings.offlineOnly
         let runID = UUID()
         self.runID = runID
         self.request = request
         self.engine = engine
         self.recognizer = recognizer
 
+        // Serialize callbacks before handing them to the state machine on the main queue.
+        let callbackQueue = OperationQueue()
+        callbackQueue.maxConcurrentOperationCount = 1
+        recognizer.queue = callbackQueue
         task = recognizer.recognitionTask(with: request) { [weak self] result, error in
             let transcript = result?.bestTranscription.formattedString
             let final = result?.isFinal == true
-            let failed = error != nil
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 guard self?.runID == runID else { return }
-                if final, let transcript {
+                if let error {
+                    onEvent(.failed(error, partial: transcript))
+                } else if final, let transcript {
                     onEvent(.final(transcript))
-                } else if failed {
-                    if let transcript { onEvent(.partial(transcript)) }
-                    onEvent(.failed("Apple Speech no pudo terminar la transcripción. Vuelve a intentarlo."))
                 } else if let transcript {
                     onEvent(.partial(transcript))
                 }
             }
         }
 
-        input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
-            request.append(buffer)
+        input.installTap(onBus: 0, bufferSize: 1024, format: nil) { buffer, _ in
+            if buffer.frameLength > 0 { request.append(buffer) }
         }
         engine.prepare()
         do {
@@ -78,22 +103,35 @@ final class SpeechRecognitionService {
         ) { [weak self] _ in
             Task { @MainActor in
                 guard let self, self.runID == runID, let engine = self.engine, !engine.isRunning else { return }
-                onEvent(.failed("La configuración del micrófono cambió. Vuelve a escuchar."))
+                onEvent(.failed(AssistantError.captureChanged, partial: nil))
             }
         }
-        return local
     }
 
     func finishInput() {
+        guard engine != nil else { return }
         stopCapture()
         request?.endAudio()
-        task?.finish()
+    }
+
+    func complete() {
+        finishInput()
+        clear(cancelTask: false)
     }
 
     func cancel() {
+        clear(cancelTask: true)
+    }
+
+    func resetDiagnostics() {
+        inputFormatDescription = "Sin formato de captura"
+        availabilityDescription = "Sin comprobar"
+    }
+
+    private func clear(cancelTask: Bool) {
         runID = nil
         stopCapture()
-        task?.cancel()
+        if cancelTask { task?.cancel() }
         task = nil
         request = nil
         recognizer = nil

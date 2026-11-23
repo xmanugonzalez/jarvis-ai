@@ -54,7 +54,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Audio")
                 } footer: {
-                    Text("JARVIS prefiere el reconocimiento local si iOS lo admite. Si activas Solo sin conexión, exige que esté disponible para el idioma elegido.")
+                    Text("Solo sin conexión exige reconocimiento local para el idioma elegido. Si lo desactivas, iOS puede usar el servicio de Apple.")
                 }
                 .disabled(!model.isIdle)
                 .listRowBackground(Palette.surface)
@@ -62,6 +62,17 @@ struct SettingsView: View {
                 if let notice = model.notice {
                     Section { NoticeView(notice: notice) }
                         .listRowBackground(Palette.surface)
+                }
+
+                if let diagnostic = model.recognitionDiagnostic {
+                    Section {
+                        DisclosureGroup("Diagnóstico de reconocimiento") {
+                            Text(diagnostic)
+                                .font(.footnote.monospaced())
+                                .textSelection(.enabled)
+                        }
+                    }
+                    .listRowBackground(Palette.surface)
                 }
             }
             .scrollContentBackground(.hidden)
