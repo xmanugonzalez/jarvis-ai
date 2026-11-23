@@ -39,7 +39,7 @@ jobs:
           app="$RUNNER_TEMP/jarvis-build/Build/Products/Release-iphoneos/JarvisAI.app"
           plutil -lint "$app/Info.plist"
           executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Info.plist")"
-          xcrun lipo -verify_arch arm64 "$app/$executable"
+          xcrun lipo "$app/$executable" -verify_arch arm64
           test ! -e "$app/embedded.mobileprovision"
           output="$GITHUB_WORKSPACE/dist"
           stage="$(mktemp -d "$RUNNER_TEMP/jarvis-ipa.XXXXXX")"
