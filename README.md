@@ -2,10 +2,11 @@
 
 Asistente SwiftUI en español para iPhone con iOS 17 o posterior. Incluye transcripción de voz, respuestas locales, síntesis en español y una prueba de grabación y reproducción. El audio funciona mientras la app está abierta.
 
-## Generar el IPA desde Windows
+## Descargar el IPA
 
-1. Sube este proyecto a un repositorio de GitHub con Actions habilitado. Un push a `main` o `master` compila automáticamente. También puedes abrir **Actions → Compilar IPA de JARVIS AI → Run workflow** para iniciarlo a mano.
-2. Cuando termine la ejecución, descarga **JARVIS-AI-iOS** en **Artifacts**. Extrae `JARVIS-AI.ipa` del ZIP y guárdalo en **Archivos** en el iPhone.
+Cada push a `main` que complete la compilación y la verificación del paquete publica una Release. Descarga el archivo directamente y guárdalo en **Archivos** en el iPhone. [Descargar JARVIS-AI.ipa](https://github.com/xmanugonzalez/jarvis-ai/releases/latest/download/JARVIS-AI.ipa)
+
+**Actions** conserva el artefacto **JARVIS-AI-iOS** como respaldo. Las ejecuciones manuales y los push a `master` generan el artefacto de Actions.
 
 El runner macOS compila para un iPhone físico (arm64) y empaqueta `Payload/JarvisAI.app` sin firma. SideStore firma el IPA con tu cuenta de Apple y genera el perfil de aprovisionamiento al instalarlo. GitHub Actions no requiere certificados, contraseñas ni una membresía de pago de Apple.
 

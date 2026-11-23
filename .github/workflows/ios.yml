@@ -57,3 +57,48 @@ jobs:
           path: dist/JARVIS-AI.ipa
           if-no-files-found: error
           compression-level: 0
+          overwrite: true
+
+  release:
+    needs: ipa
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    concurrency:
+      group: jarvis-ios-releases
+      queue: max
+    steps:
+      - name: Recuperar el IPA verificado
+        uses: actions/download-artifact@v6
+        with:
+          name: JARVIS-AI-iOS
+          path: dist
+
+      - name: Publicar el IPA en GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="ios-${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}-${GITHUB_RUN_ID}"
+          latest_tag="$(gh api graphql \
+            -f query='query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { latestRelease { tagName } } }' \
+            -f owner="${GITHUB_REPOSITORY%%/*}" \
+            -f name="${GITHUB_REPOSITORY#*/}" \
+            --jq '.data.repository.latestRelease.tagName // ""')"
+
+          # Una ejecución antigua que termine tarde conserva su Release sin desplazar a Latest.
+          latest=true
+          if [[ "$latest_tag" =~ ^ios-([0-9]+)\.([0-9]+)-([0-9]+)$ ]] &&
+            (( BASH_REMATCH[1] > GITHUB_RUN_NUMBER ||
+              (BASH_REMATCH[1] == GITHUB_RUN_NUMBER && BASH_REMATCH[2] > GITHUB_RUN_ATTEMPT) )); then
+            latest=false
+          fi
+
+          gh release create "$tag" dist/JARVIS-AI.ipa \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "JARVIS AI · $tag" \
+            --notes "IPA para iPhone (arm64) sin firma, listo para firmar e instalar con SideStore." \
+            --latest="$latest"
