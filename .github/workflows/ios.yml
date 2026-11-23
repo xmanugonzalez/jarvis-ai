@@ -31,7 +31,8 @@ jobs:
         run: |
           set -euo pipefail
           xcodebuild -version
-          xcodebuild \
+          build_log="$RUNNER_TEMP/jarvis-xcodebuild.log"
+          if ! xcodebuild \
             -project JarvisAI.xcodeproj \
             -scheme JarvisAI \
             -configuration Release \
@@ -41,7 +42,12 @@ jobs:
             ARCHS=arm64 \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            build
+            build 2>&1 | tee "$build_log"; then
+            while IFS= read -r diagnostic; do
+              printf '::error::%s\n' "${diagnostic//%/%25}"
+            done < <(grep -m 10 'error:' "$build_log")
+            exit 1
+          fi
 
       - name: Empaquetar y comprobar el IPA
         run: |

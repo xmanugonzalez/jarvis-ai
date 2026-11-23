@@ -166,10 +166,15 @@ final class AssistantViewModel: ObservableObject {
         recognitionMode = settings.offlineOnly ? "Local en el iPhone" : "Automático de Apple"
         recognition.resetDiagnostics()
         guard !audio.snapshot().inputs.isEmpty else { throw AssistantError.noInput }
-        let activity: (() -> Void)? = automatic ? { [weak self] in
-            guard let self, self.operationID == id, self.state == .listening else { return }
-            self.lastVoice = self.clock.now
-        } : nil
+        let activity: (() -> Void)?
+        if automatic {
+            activity = { [weak self] in
+                guard let self, self.operationID == id, self.state == .listening else { return }
+                self.lastVoice = self.clock.now
+            }
+        } else {
+            activity = nil
+        }
         try recognition.start(settings: settings, onVoiceActivity: activity, capture: automatic ? wake : nil) { [weak self] event in
             self?.handleRecognition(event, id: id)
         }
