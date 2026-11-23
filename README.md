@@ -1,6 +1,6 @@
 # JARVIS AI · Etapa 1
 
-Asistente SwiftUI en español para iPhone con iOS 17 o posterior. Incluye transcripción de voz, respuestas locales, síntesis en español y una prueba de grabación y reproducción. El audio funciona mientras la app está abierta.
+Asistente SwiftUI en español para iPhone con iOS 17 o posterior. Incluye transcripción de voz, respuestas locales, síntesis en español y una prueba de grabación y reproducción. El Modo JARVIS mantiene una sesión de audio activa en segundo plano mientras iOS lo permite.
 
 ## Instalar y actualizar desde SideStore
 
@@ -30,26 +30,40 @@ El runner estándar es gratuito en repositorios públicos. Si el repositorio es 
 
 ## Voz local con Kokoro
 
-En **Configuración → Kokoro · español**, descarga el modelo una vez (unos 142 MB). Después elige **Kokoro · em_alex** en **Motor de voz**. Los botones de demostración de Kokoro y Apple reproducen la misma frase. La descarga usa Hugging Face y la síntesis se ejecuta en el iPhone. En esa misma sección puedes cancelar la descarga o eliminar los archivos instalados.
+En **Configuración → Kokoro · español**, descarga el modelo una vez (unos 142 MB). Escucha la demostración de em_alex desde esa sección. La descarga usa Hugging Face y la síntesis se ejecuta en el iPhone. En esa misma sección puedes cancelar la descarga o eliminar los archivos instalados.
 
-La integración usa [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) v1.0 multilingüe INT8 mediante [sherpa-onnx 1.13.8](https://github.com/k2-fsa/sherpa-onnx/tree/v1.13.8). La voz `em_alex` es el hablante 29 y el fonetizador usa `es`. Se usan dos hilos de CPU y se reutiliza el motor cargado. Si Kokoro falla o pasan diez segundos sin audio generado, JARVIS pasa a la voz de Apple en la sesión actual. [Mapa oficial de voces](https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/kokoro.html)
+La integración usa [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) v1.0 multilingüe INT8 mediante [sherpa-onnx 1.13.8](https://github.com/k2-fsa/sherpa-onnx/tree/v1.13.8). La voz `em_alex` es el hablante 29 y el fonetizador usa `es`. Se usan dos hilos de CPU y se reutiliza el motor cargado. Si Kokoro falla o pasan diez segundos sin audio generado, JARVIS muestra el error. [Mapa oficial de voces](https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/kokoro.html)
 
 GitHub Actions prepara los datos del fonetizador y compila los binarios estáticos de iPhone mediante Swift Package Manager. Para abrir el proyecto y compilar en una Mac, ejecuta primero `bash .github/scripts/prepare_kokoro.sh` desde la raíz. La compilación incluye los avisos de Kokoro, sherpa-onnx, ONNX Runtime y eSpeak NG. Los binarios de sherpa-onnx usados aquí incluyen eSpeak NG bajo GPL. Consulta la información de código fuente y licencias de esa dependencia al distribuir el IPA. [Inventario de sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx/issues/4053)
 
-### Prueba de Kokoro en el iPhone
+## Modo JARVIS
 
-1. Actualiza JARVIS desde SideStore, descarga el modelo y escucha las dos demostraciones con el altavoz interno.
-2. Una vez descargado, prueba la demostración de Kokoro sin internet. Selecciónalo como motor y comprueba la secuencia completa de escuchar y responder. Apple Speech puede necesitar conexión si no has activado su modo local.
-3. Repite la secuencia con el Y12 Pro en HFP. Elimina los archivos de Kokoro y comprueba que JARVIS vuelve a usar Apple al responder.
+1. Descarga Kokoro, empareja el Y12 Pro y verifica en **Bluetooth → Comprobar ruta** que aparece como entrada y salida manos libres.
+2. En **Inicio**, activa **Modo JARVIS** y concede acceso al micrófono y a Apple Speech. Di «Jarvis» con pronunciación inglesa aproximada («Yárvis»), espera el tono y formula la pregunta. Prueba «¿Qué hora es?» y deja una pausa al terminar.
+3. Después de oír la respuesta, puedes continuar con «¿Y qué fecha es hoy?». La ventana escucha continuaciones de hora y fecha que empiezan con «y» o «también». Cuando expire, di «Jarvis» de nuevo. En **Configuración → Modo JARVIS**, puedes ajustar el silencio de cierre y la duración de esa ventana. Elige **0 s** para exigir «Jarvis» en cada turno.
 
-En Windows se verificaron los hashes del modelo y la generación local de audio no silencioso a 24 kHz con `em_alex` y el idioma `es`. Los binarios estáticos de sherpa-onnx y ONNX Runtime contienen código Mach-O para iPhone arm64 con mínimo iOS 13. La compilación con Xcode y las pruebas de sonido, latencia y Bluetooth en el iPhone 11 Pro Max quedan pendientes.
+El detector INT8 de sherpa-onnx funciona localmente con un hilo de CPU y solo busca «Jarvis». Usa el modelo inglés GigaSpeech 3,3 M con licencia Apache 2.0. Se evaluó Porcupine, que requiere cuenta y AccessKey. Picovoice indica que actualmente no ofrece planes dedicados a uso personal o no comercial. [Modelo sherpa-onnx](https://k2-fsa.github.io/sherpa/onnx/kws/pretrained_models/index.html#sherpa-onnx-kws-zipformer-gigaspeech-3-3m-2024-01-01-english) · [Picovoice para iOS](https://picovoice.ai/docs/quick-start/porcupine-ios/) · [Preguntas de Picovoice](https://picovoice.ai/docs/faq/general/)
 
-## Probar con el Y12 Pro
+Apple Speech se abre tras el tono o durante la ventana de continuación. Cada turno automático se limita a 25 segundos de captura y 10 de finalización. Durante la reproducción, la app mantiene la sesión de audio y descarta los buffers del micrófono para evitar que su propia voz active otro turno. El audio de la conversación no se guarda en archivos. La ventana puede captar a otras personas cercanas y el filtro de instrucciones no identifica a quien habla. **Solo sin conexión** exige reconocimiento local de Apple Speech para la variante de español elegida.
 
-1. Empareja y conecta el intercomunicador en **Ajustes → Bluetooth** de iOS. En JARVIS, abre **Bluetooth → Comprobar ruta**. Si iOS expone una ruta manos libres, comprueba que el casco aparece como entrada y salida. Una ruta de solo salida no confirma que el micrófono del casco esté disponible.
-2. Toca **Grabar prueba**, habla, termina la grabación y toca **Reproducir grabación**. Escucha el resultado en el casco. La grabación es temporal y se reemplaza al guardar una nueva toma.
-3. En **Inicio**, toca **Comenzar a escuchar**, concede los permisos y di «Hola, Jarvis». Toca **Terminar de hablar** cuando acabes. Deberías ver el texto y escuchar «A sus órdenes, señor». Si falla, abre **Configuración → Diagnóstico de reconocimiento** y copia el último error.
-4. En **Configuración**, elige una voz masculina que el iPhone ofrezca, ajusta el ritmo y prueba la voz. **Solo sin conexión** exige reconocimiento local del idioma seleccionado. Si lo desactivas, iOS puede usar el servicio de Apple.
-5. Desconecta el casco durante una prueba. JARVIS debe detener el audio si cambia la ruta. Reconecta y vuelve a comprobarla. Haz lo mismo después de una llamada que interrumpa la sesión.
+### Pantalla bloqueada y Bluetooth
 
-El nombre del casco y los perfiles disponibles dependen de iOS y del accesorio. **Preferir manos libres** solicita una entrada HFP cuando está disponible. Con esa preferencia desactivada, iOS decide la ruta. Las pruebas de instalación, micrófono del Y12 Pro y salida por el casco requieren un iPhone físico.
+El modo usa una sesión de grabación y reproducción con `voiceChat`, HFP y la capacidad de audio en segundo plano. iOS decide si la sesión continúa al bloquear o dejar la app. Si suspende o termina el proceso, la detección se detiene. Después de volver a abrir JARVIS, puedes reactivar la escucha con el interruptor. Si hay una llamada, el turno se cancela. La detección puede reanudarse si iOS autoriza reactivar el audio tras la interrupción. Si se pierde HFP, la escucha se pausa y puede reanudarse al volver el casco. [AVAudioSession de Apple](https://developer.apple.com/documentation/avfaudio/avaudiosession/category-swift.struct/playandrecord)
+
+La app permite mezclar audio en el Modo JARVIS. iOS y el casco pueden reducir la calidad, pausar la música o pasar de A2DP a HFP al abrir el micrófono. Desactiva el modo para liberar la sesión del casco. [Rutas Bluetooth de Apple](https://developer.apple.com/documentation/avfaudio/avaudiosession/categoryoptions-swift.struct/allowbluetooth)
+
+### Pruebas
+
+| Escenario en iPhone | Resultado esperado |
+| --- | --- |
+| App abierta, altavoz interno | «Jarvis» activa el tono. Una pregunta después del tono se transcribe y Kokoro responde. |
+| Pantalla bloqueada y luego otra app en primer plano | Si iOS mantiene la sesión activa, se conserva el flujo de tono, captura y respuesta. Comprueba ambos casos por separado. |
+| Micrófono y salida del Y12 Pro | El casco aparece como entrada y salida HFP y reproduce el tono y la respuesta. |
+| Pausas y cierre | Una pausa inferior al umbral permite continuar. Tras superar el umbral, se procesa la instrucción. |
+| Retorno al detector y activaciones accidentales | Habla sin decir «Jarvis» y comprueba que no hay respuesta. Prueba una continuación con «y», deja vencer la ventana y repite la frase sin activación. |
+| Música, llamadas y reconexión | Comprueba cómo cambia la música con HFP. Recibe una llamada, cuelga, desconecta y reconecta el casco. Si iOS no reanuda la sesión, reactívala en Inicio. |
+| Fallo de Kokoro y cierre de la app | Si falta el modelo, JARVIS indica cómo descargarlo. Al cerrar completamente la app, deja de escuchar. |
+
+En Xcode o Console, filtra por las categorías `HandsFree`, `Speech` y `Synthesis` para ver los estados, el micrófono, las detecciones, los tiempos y los cambios de ruta. La pantalla **Configuración → Diagnóstico de reconocimiento** muestra el último error de Apple Speech.
+
+En Windows se probó el detector con una muestra sintética de «Jarvis» pronunciada en inglés y dos grabaciones de conversación del modelo. La muestra inglesa activó el detector y las conversaciones no. Una muestra con jota española no activó el modelo. También se probó Kokoro con em_alex en español a 24 kHz. GitHub Actions ejecuta pruebas Swift de silencio, recuperación de la espera y filtrado de continuaciones antes de compilar el IPA. Las pruebas de la tabla, incluida la pantalla bloqueada, requieren un iPhone físico.

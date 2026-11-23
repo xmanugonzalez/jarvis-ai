@@ -1,5 +1,3 @@
-import AVFoundation
-import Combine
 import SwiftUI
 
 struct SettingsView: View {
@@ -15,39 +13,25 @@ struct SettingsView: View {
                         }
                     }
                     .pickerStyle(.navigationLink)
-                    Picker("Motor de voz", selection: $model.settings.voiceEngine) {
-                        ForEach(VoiceEngine.allCases) { engine in
-                            Text(engine.title).tag(engine)
-                        }
-                    }
-                    .pickerStyle(.navigationLink)
-                    NavigationLink {
-                        VoiceSelectionView(model: model)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Voz de Apple")
-                            Text(selectedVoiceTitle)
-                                .font(.subheadline)
-                                .foregroundStyle(Palette.muted)
-                        }
-                        .frame(minHeight: 44)
-                    }
-                    voiceSlider("Tono", value: $model.settings.speechPitch, range: AssistantSettings.pitchRange)
                     voiceSlider("Velocidad", value: $model.settings.speechRate, range: AssistantSettings.rateRange)
                     voiceSlider("Volumen", value: $model.settings.speechVolume, range: AssistantSettings.volumeRange)
-                    Button { model.previewVoice() } label: {
-                        Label("Escuchar demostración de Apple", systemImage: "speaker.wave.2")
-                            .frame(minHeight: 44)
-                    }
                 } header: {
                     Text("Voz e idioma")
-                } footer: {
-                    Text("El tono y el selector de voces se aplican a Apple. La velocidad y el volumen se aplican a ambos motores.")
                 }
                 .disabled(!model.isIdle)
                 .listRowBackground(Palette.surface)
 
                 KokoroSettingsSection(model: model, store: model.kokoroModel)
+
+                Section {
+                    timingSlider("Silencio al terminar", value: $model.settings.silenceSeconds, range: AssistantSettings.silenceRange, step: 0.25)
+                    timingSlider("Ventana de conversación", value: $model.settings.conversationSeconds, range: AssistantSettings.conversationRange, step: 1)
+                } header: {
+                    Text("Modo JARVIS")
+                } footer: {
+                    Text("Continúa con «y» o «también». Con 0 s de ventana, di «Jarvis» antes de cada pregunta. Durante la ventana, Apple Speech puede captar a quien hable cerca.")
+                }
+                .listRowBackground(Palette.surface)
 
                 Section {
                     Toggle("Preferir manos libres", isOn: $model.settings.preferBluetooth)
@@ -81,19 +65,22 @@ struct SettingsView: View {
             .background(Palette.background)
             .navigationTitle("Configuración")
         }
-        .onReceive(NotificationCenter.default.publisher(for: AVSpeechSynthesizer.availableVoicesDidChangeNotification)
-            .receive(on: DispatchQueue.main)) { _ in
-            model.refreshVoices()
-        }
     }
 
-    private var selectedVoiceTitle: String {
-        let id = model.settings.voiceID
-        guard !id.isEmpty else { return "Automática" }
-        guard let voice = model.voices.first(where: { $0.id == id }) else {
-            return "Voz guardada no disponible · se usará la automática"
+    private func timingSlider(_ title: String, value: Binding<Double>, range: ClosedRange<Double>, step: Double) -> some View {
+        let seconds = value.wrappedValue.formatted(.number.precision(.fractionLength(0...2)))
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(title)
+                Spacer()
+                Text("\(seconds) s").monospacedDigit().foregroundStyle(Palette.muted)
+            }
+            .accessibilityHidden(true)
+            Slider(value: value, in: range, step: step)
+                .accessibilityLabel(title)
+                .accessibilityValue("\(seconds) segundos")
+                .frame(minHeight: 44)
         }
-        return "\(voice.name) · \(SpanishVoice.languageTitle(voice.language)) · \(voice.quality.title)"
     }
 
     private func voiceSlider(_ title: String, value: Binding<Double>, range: ClosedRange<Double>) -> some View {
@@ -146,100 +133,11 @@ private struct KokoroSettingsSection: View {
         } header: {
             Text("Kokoro · español")
         } footer: {
-            Text("La voz em_alex se genera en el iPhone. La primera carga puede tardar. JARVIS usa Apple si Kokoro no está disponible o tarda demasiado.")
+            Text("La voz em_alex se genera en el iPhone. La primera carga puede tardar. Las respuestas se reproducen con Kokoro.")
         }
         .listRowBackground(Palette.surface)
         .onChange(of: store.status) { _, status in
             if status == .ready { model.prepareKokoro() }
         }
-    }
-}
-
-private struct VoiceSelectionView: View {
-    @ObservedObject var model: AssistantViewModel
-
-    var body: some View {
-        let byLanguage = Dictionary(grouping: model.voices, by: \.language)
-        Form {
-            Section {
-                selectionButton("Automática", id: "")
-                Button { model.previewVoice("") } label: {
-                    Label("Escuchar voz automática", systemImage: "speaker.wave.2")
-                        .frame(minHeight: 44)
-                }
-                .disabled(!model.isIdle || model.voices.isEmpty)
-            }
-            .listRowBackground(Palette.surface)
-
-            ForEach(byLanguage.keys.sorted(), id: \.self) { language in
-                let byQuality = Dictionary(grouping: byLanguage[language] ?? [], by: \.quality)
-                ForEach(VoiceQuality.allCases, id: \.self) { quality in
-                    if let voices = byQuality[quality] {
-                        Section {
-                            ForEach(voices.sorted {
-                                $0.name == $1.name ? $0.id < $1.id : $0.name.localizedStandardCompare($1.name) == .orderedAscending
-                            }) { voice in
-                                VStack(alignment: .leading, spacing: 0) {
-                                    selectionButton(voice.male ? "\(voice.name) · masculina" : voice.name, id: voice.id)
-                                    Button { model.previewVoice(voice.id) } label: {
-                                        Label("Escuchar demostración", systemImage: "speaker.wave.2")
-                                            .frame(minHeight: 44)
-                                    }
-                                    .buttonStyle(.borderless)
-                                    .accessibilityLabel("Escuchar demostración de \(voice.name)")
-                                    .disabled(!model.isIdle)
-                                }
-                            }
-                        } header: {
-                            Text("\(SpanishVoice.languageTitle(language)) · \(quality.title)")
-                        }
-                        .listRowBackground(Palette.surface)
-                    }
-                }
-            }
-
-            Section {
-                if model.voices.isEmpty {
-                    Text("iOS no ofrece voces en español a JARVIS.")
-                } else if !model.voices.contains(where: { $0.quality == .premium || $0.quality == .enhanced }) {
-                    Text("iOS no ofrece voces Mejoradas o Premium en español a JARVIS.")
-                }
-                Text("En el iPhone, abre Ajustes → Accesibilidad → Contenido leído → Voces. Selecciona Español y descarga la variante Mejorada o Premium si aparece. Vuelve a JARVIS cuando termine.")
-                    .font(.footnote)
-                    .foregroundStyle(Palette.muted)
-            }
-            .listRowBackground(Palette.surface)
-
-            if let notice = model.notice {
-                Section { NoticeView(notice: notice) }
-                    .listRowBackground(Palette.surface)
-            }
-        }
-        .scrollContentBackground(.hidden)
-        .background(Palette.background)
-        .navigationTitle("Voces en español")
-        .onAppear { model.refreshVoices() }
-    }
-
-    private func selectionButton(_ title: String, id: String) -> some View {
-        let selected = model.settings.voiceID == id
-        return Button {
-            model.settings.voiceID = id
-        } label: {
-            HStack {
-                Text(title)
-                    .foregroundStyle(Color.primary)
-                Spacer()
-                if selected {
-                    Image(systemName: "checkmark")
-                        .accessibilityHidden(true)
-                }
-            }
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.borderless)
-        .accessibilityAddTraits(selected ? .isSelected : [])
-        .disabled(!model.isIdle)
     }
 }

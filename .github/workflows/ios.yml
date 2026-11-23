@@ -17,8 +17,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Preparar datos del fonetizador de Kokoro
+      - name: Preparar el fonetizador y el detector local
         run: bash .github/scripts/prepare_kokoro.sh
+
+      - name: Probar la lógica de conversación
+        run: |
+          set -euo pipefail
+          swiftc JarvisAI/Models/AssistantState.swift JarvisAI/Utilities/LocalResponses.swift \
+            .github/scripts/test_hands_free.swift -o "$RUNNER_TEMP/jarvis-hands-free-tests"
+          "$RUNNER_TEMP/jarvis-hands-free-tests"
 
       - name: Compilar para iPhone (arm64)
         run: |
@@ -45,6 +52,8 @@ jobs:
           executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Info.plist")"
           xcrun lipo "$app/$executable" -verify_arch arm64
           test -f "$app/KokoroSupport/espeak-ng-data/es_dict"
+          test -s "$app/KokoroSupport/WakeWord/encoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx"
+          test -s "$app/KokoroSupport/WakeWord/jarvis.txt"
           test ! -e "$app/KokoroSupport/model.int8.onnx"
           test ! -e "$app/embedded.mobileprovision"
           output="$GITHUB_WORKSPACE/dist"

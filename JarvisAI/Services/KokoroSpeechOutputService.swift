@@ -75,6 +75,7 @@ final class KokoroSpeechOutputService: NSObject, AVAudioPlayerDelegate {
     }
 
     func speak(_ text: String, settings: AssistantSettings, model: URL?,
+               onPlaybackStarted: (() -> Void)? = nil,
                completion: @escaping (Error?) -> Void) throws {
         guard !rendering else { throw KokoroError.busy }
         guard let model, let data = phonemizerData else {
@@ -107,6 +108,7 @@ final class KokoroSpeechOutputService: NSObject, AVAudioPlayerDelegate {
                     player.volume = volume
                     self.player = player
                     guard player.play() else { throw KokoroError.synthesis }
+                    onPlaybackStarted?()
                 } catch {
                     self.finish(error: error)
                 }

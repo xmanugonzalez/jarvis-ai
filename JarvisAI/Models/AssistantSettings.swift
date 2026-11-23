@@ -16,35 +16,29 @@ enum SpanishLocale: String, CaseIterable, Identifiable {
     }
 }
 
-enum VoiceEngine: String, CaseIterable, Identifiable {
-    case apple, kokoro
-
-    var id: String { rawValue }
-    var title: String { self == .apple ? "Apple" : "Kokoro · em_alex" }
-}
-
 struct AssistantSettings {
     static let rateRange = 0.35...0.60
-    static let pitchRange = 0.85...1.12
     static let volumeRange = 0.0...1.0
+    static let silenceRange = 1.5...4.0
+    static let conversationRange = 0.0...20.0
 
     var language: SpanishLocale = .mexico
-    var voiceID = ""
-    var voiceEngine: VoiceEngine = .apple
     var speechRate = 0.46
-    var speechPitch = 0.93
     var speechVolume = 0.90
+    var jarvisEnabled = false
+    var silenceSeconds = 2.25
+    var conversationSeconds = 8.0
     var preferBluetooth = true
     var usePhoneSpeaker = true
     var offlineOnly = false
 
     init(defaults: UserDefaults) {
         language = SpanishLocale(rawValue: defaults.string(forKey: "language") ?? "") ?? .mexico
-        voiceID = defaults.string(forKey: "voiceID") ?? ""
-        voiceEngine = VoiceEngine(rawValue: defaults.string(forKey: "voiceEngine") ?? "") ?? .apple
         speechRate = Self.savedValue("speechRate", defaults, Self.rateRange, fallback: speechRate)
-        speechPitch = Self.savedValue("speechPitch", defaults, Self.pitchRange, fallback: speechPitch)
         speechVolume = Self.savedValue("speechVolume", defaults, Self.volumeRange, fallback: speechVolume)
+        jarvisEnabled = defaults.bool(forKey: "jarvisEnabled")
+        silenceSeconds = Self.savedValue("silenceSeconds", defaults, Self.silenceRange, fallback: silenceSeconds)
+        conversationSeconds = Self.savedValue("conversationSeconds", defaults, Self.conversationRange, fallback: conversationSeconds)
         preferBluetooth = defaults.object(forKey: "preferBluetooth") as? Bool ?? true
         usePhoneSpeaker = defaults.object(forKey: "usePhoneSpeaker") as? Bool ?? true
         offlineOnly = defaults.bool(forKey: "offlineOnly")
@@ -52,11 +46,11 @@ struct AssistantSettings {
 
     func save(to defaults: UserDefaults) {
         defaults.set(language.rawValue, forKey: "language")
-        defaults.set(voiceID, forKey: "voiceID")
-        defaults.set(voiceEngine.rawValue, forKey: "voiceEngine")
         defaults.set(speechRate, forKey: "speechRate")
-        defaults.set(speechPitch, forKey: "speechPitch")
         defaults.set(speechVolume, forKey: "speechVolume")
+        defaults.set(jarvisEnabled, forKey: "jarvisEnabled")
+        defaults.set(silenceSeconds, forKey: "silenceSeconds")
+        defaults.set(conversationSeconds, forKey: "conversationSeconds")
         defaults.set(preferBluetooth, forKey: "preferBluetooth")
         defaults.set(usePhoneSpeaker, forKey: "usePhoneSpeaker")
         defaults.set(offlineOnly, forKey: "offlineOnly")

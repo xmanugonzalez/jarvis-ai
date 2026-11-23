@@ -3,7 +3,7 @@ import AVFoundation
 @MainActor
 final class AudioSessionService {
     enum Event {
-        case routeChanged(AVAudioSession.RouteChangeReason), interrupted, interruptionEnded, mediaReset
+        case routeChanged(AVAudioSession.RouteChangeReason), interrupted, interruptionEnded(shouldResume: Bool), mediaReset
     }
 
     var onEvent: ((Event) -> Void)?
@@ -24,12 +24,14 @@ final class AudioSessionService {
             center.addObserver(forName: AVAudioSession.interruptionNotification, object: session, queue: nil) { [weak self] notification in
                 guard let rawValue = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
                       let type = AVAudioSession.InterruptionType(rawValue: rawValue) else { return }
+                let options = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+                let shouldResume = AVAudioSession.InterruptionOptions(rawValue: options).contains(.shouldResume)
                 Task { @MainActor in
                     guard let self else { return }
                     if type == .began {
                         self.active = false
                     }
-                    self.onEvent?(type == .began ? .interrupted : .interruptionEnded)
+                    self.onEvent?(type == .began ? .interrupted : .interruptionEnded(shouldResume: shouldResume))
                 }
             },
             center.addObserver(forName: AVAudioSession.mediaServicesWereResetNotification, object: session, queue: nil) { [weak self] _ in
@@ -48,14 +50,15 @@ final class AudioSessionService {
         }
     }
 
-    func activate(settings: AssistantSettings) async throws -> AudioRoute {
-        try session.setCategory(.playAndRecord, mode: .default, options: .allowBluetooth)
+    func activate(settings: AssistantSettings, handsFree: Bool = false, requireHFP: Bool = false) async throws -> AudioRoute {
+        let options: AVAudioSession.CategoryOptions = handsFree ? [.allowBluetooth, .mixWithOthers] : .allowBluetooth
+        try session.setCategory(.playAndRecord, mode: handsFree ? .voiceChat : .default, options: options)
         try session.setActive(true)
         active = true
 
         let inputs = session.availableInputs ?? []
         let currentHFP = session.currentRoute.inputs.first { $0.portType == .bluetoothHFP }
-        let preferred = settings.preferBluetooth
+        let preferred = settings.preferBluetooth || requireHFP
             ? (inputs.first { $0.uid == currentHFP?.uid } ?? inputs.first { $0.portType == .bluetoothHFP })
             : nil
         if session.preferredInput?.uid != preferred?.uid {
@@ -75,6 +78,7 @@ final class AudioSessionService {
             }
             throw AssistantError.routeUnavailable
         }
+        if requireHFP { throw AssistantError.routeUnavailable }
 
         let route = session.currentRoute
         if settings.usePhoneSpeaker,

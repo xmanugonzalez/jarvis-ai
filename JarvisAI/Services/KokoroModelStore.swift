@@ -9,7 +9,7 @@ enum KokoroError: LocalizedError {
         switch self {
         case .download: "No se pudo descargar Kokoro. Comprueba la conexión y vuelve a intentarlo."
         case .invalidFile(let name): "La verificación del archivo \(name) falló. Vuelve a descargar Kokoro."
-        case .unavailable: "El modelo Kokoro no está listo."
+        case .unavailable: "El modelo Kokoro no está listo. Comprueba la descarga en Configuración."
         case .busy: "Kokoro todavía está terminando una síntesis anterior."
         case .synthesis: "Kokoro no pudo generar o reproducir el audio."
         case .timeout: "Kokoro tardó demasiado en generar el audio."

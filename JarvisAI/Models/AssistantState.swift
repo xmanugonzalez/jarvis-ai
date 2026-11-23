@@ -1,13 +1,15 @@
 import Foundation
 
 enum AssistantState: Equatable {
-    case ready, preparing, listening, processing, speaking, recording, playing, checking
+    case ready, preparing, waitingWake, cue, listening, processing, speaking, recording, playing, checking
 
     var title: String {
         switch self {
         case .ready: "En espera"
         case .preparing: "Preparando audio"
-        case .listening: "Escuchando"
+        case .waitingWake: "Esperando «Jarvis»"
+        case .cue: "Confirmando activación"
+        case .listening: "Escuchando instrucción"
         case .processing: "Procesando voz"
         case .speaking: "Respondiendo"
         case .recording: "Grabando prueba"
@@ -20,9 +22,27 @@ enum AssistantState: Equatable {
         switch self {
         case .ready: "mic"
         case .preparing, .processing, .checking: "ellipsis"
+        case .waitingWake: "ear"
+        case .cue: "speaker.wave.1"
         case .listening, .recording: "waveform"
         case .speaking, .playing: "speaker.wave.2"
         }
+    }
+}
+
+struct HandsFreeTurn {
+    enum End: Equatable { case keepListening, silence, noSpeech, timeLimit }
+
+    let startLimit: Double
+    let silenceLimit: Double
+    static let maximumSeconds = 25.0
+
+    func decision(elapsed: Double, lastSpeech: Double?, hasText: Bool) -> End {
+        if elapsed >= Self.maximumSeconds { return hasText ? .timeLimit : .noSpeech }
+        if let lastSpeech, elapsed - lastSpeech >= silenceLimit, hasText { return .silence }
+        if !hasText && (lastSpeech == nil || elapsed - (lastSpeech ?? 0) >= silenceLimit),
+           elapsed >= startLimit { return .noSpeech }
+        return .keepListening
     }
 }
 
@@ -45,7 +65,7 @@ enum AssistantError: LocalizedError, Equatable {
     case microphonePermission, speechPermission, speechRestricted
     case speechUnavailable, unsupportedSpeechLanguage, offlineUnavailable, noInput, routeUnavailable
     case captureChanged, speechTimedOut
-    case recordingFailed, playbackFailed, noOutput, noSpanishVoice, previewVoiceUnavailable
+    case recordingFailed, playbackFailed, noOutput, wakeUnavailable
 
     var errorDescription: String? {
         switch self {
@@ -62,8 +82,7 @@ enum AssistantError: LocalizedError, Equatable {
         case .recordingFailed: "No se pudo guardar la grabación de prueba. Vuelve a grabar."
         case .playbackFailed: "No se pudo reproducir la grabación de prueba. Comprueba la ruta de audio."
         case .noOutput: "iOS no proporciona una salida de audio en la ruta actual."
-        case .noSpanishVoice: "iOS no ofrece una voz en español. Instala una voz en los Ajustes del iPhone y vuelve a intentarlo."
-        case .previewVoiceUnavailable: "Esta voz ya no está disponible. Comprueba la descarga en los Ajustes del iPhone."
+        case .wakeUnavailable: "El detector de «Jarvis» no está disponible. Vuelve a instalar el IPA desde SideStore."
         }
     }
 }

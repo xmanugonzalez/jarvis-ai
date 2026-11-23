@@ -23,11 +23,15 @@
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSMicrophoneUsageDescription</key>
-    <string>JARVIS usa el micrófono para escuchar tu voz y grabar la prueba de audio.</string>
+    <string>JARVIS usa el micrófono para escuchar instrucciones, detectar «Jarvis» mientras activas el modo manos libres y grabar pruebas de audio.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
     <string>JARVIS usa el reconocimiento de voz de Apple para convertir lo que dices en texto. Si desactivas Solo sin conexión, Apple puede procesar el audio mediante su servicio.</string>
     <key>UILaunchScreen</key>
     <dict/>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>audio</string>
+    </array>
     <key>UISupportedInterfaceOrientations</key>
     <array>
         <string>UIInterfaceOrientationPortrait</string>
