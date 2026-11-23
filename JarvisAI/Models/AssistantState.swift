@@ -45,7 +45,7 @@ enum AssistantError: LocalizedError, Equatable {
     case microphonePermission, speechPermission, speechRestricted
     case speechUnavailable, unsupportedSpeechLanguage, offlineUnavailable, noInput, routeUnavailable
     case captureChanged, speechTimedOut
-    case recordingFailed, playbackFailed, noOutput, noSpanishVoice
+    case recordingFailed, playbackFailed, noOutput, noSpanishVoice, previewVoiceUnavailable
 
     var errorDescription: String? {
         switch self {
@@ -63,6 +63,7 @@ enum AssistantError: LocalizedError, Equatable {
         case .playbackFailed: "No se pudo reproducir la grabación de prueba. Comprueba la ruta de audio."
         case .noOutput: "iOS no proporciona una salida de audio en la ruta actual."
         case .noSpanishVoice: "iOS no ofrece una voz en español. Instala una voz en los Ajustes del iPhone y vuelve a intentarlo."
+        case .previewVoiceUnavailable: "Esta voz ya no está disponible. Comprueba la descarga en los Ajustes del iPhone."
         }
     }
 }

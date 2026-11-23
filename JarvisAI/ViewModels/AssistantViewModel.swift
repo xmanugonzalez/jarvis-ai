@@ -21,7 +21,7 @@ final class AssistantViewModel: ObservableObject {
     private let defaults: UserDefaults
     private let audio = AudioSessionService()
     private let recognition = SpeechRecognitionService()
-    private let speech = SpeechOutputService()
+    private let speech: any SpeechSynthesisProvider = SpeechOutputService()
     private let audioTest = AudioTestService(directory: FileManager.default.temporaryDirectory)
     private var operationID: UUID?
     private var setup: Task<Void, Never>?
@@ -39,8 +39,12 @@ final class AssistantViewModel: ObservableObject {
     }
 
     func foregrounded() {
-        voices = speech.voices()
+        refreshVoices()
         if isIdle { route = audio.snapshot() }
+    }
+
+    func refreshVoices() {
+        voices = speech.voices()
     }
 
     func backgrounded() {
@@ -76,10 +80,11 @@ final class AssistantViewModel: ObservableObject {
         setDeadline(.seconds(10)) { $0.failRecognition(AssistantError.speechTimedOut) }
     }
 
-    func previewVoice() {
+    func previewVoice(_ voiceID: String? = nil) {
         begin { model, _ in
             try await model.activate()
-            model.speak("A sus órdenes, señor.")
+            model.speak("Buenas noches, señor. JARVIS está completamente operativo. ¿En qué puedo ayudarlo?",
+                        previewVoiceID: voiceID)
         }
     }
 
@@ -223,7 +228,7 @@ final class AssistantViewModel: ObservableObject {
         speak(response)
     }
 
-    private func speak(_ text: String) {
+    private func speak(_ text: String, previewVoiceID: String? = nil) {
         let current = audio.snapshot()
         guard !current.outputs.isEmpty else {
             end(AssistantError.noOutput.localizedDescription)
@@ -237,7 +242,7 @@ final class AssistantViewModel: ObservableObject {
         let id = operationID
         state = .speaking
         do {
-            try speech.speak(text, settings: settings) { [weak self] success in
+            try speech.speak(text, settings: settings, previewVoiceID: previewVoiceID) { [weak self] success in
                 guard let self, self.operationID == id else { return }
                 self.end(success ? nil : "La respuesta hablada se interrumpió.")
             }

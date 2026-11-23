@@ -1,0 +1,24 @@
+{
+  "name": "JARVIS AI",
+  "identifier": "dev.jarvisai.assistant.source",
+  "sourceURL": "https://raw.githubusercontent.com/xmanugonzalez/jarvis-ai/main/source.json",
+  "apps": [
+    {
+      "name": "JARVIS AI",
+      "bundleIdentifier": "dev.jarvisai.assistant",
+      "developerName": "xmanugonzalez",
+      "localizedDescription": "Asistente personal en español con reconocimiento de voz y respuestas habladas.",
+      "iconURL": "https://raw.githubusercontent.com/xmanugonzalez/jarvis-ai/main/JarvisAI/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
+      "versions": [
+        {
+          "version": "0.1.0",
+          "buildVersion": "1",
+          "date": "2026-11-23T01:29:13Z",
+          "downloadURL": "https://github.com/xmanugonzalez/jarvis-ai/releases/download/ios-4.1-45094719919/JARVIS-AI.ipa",
+          "size": 347526,
+          "minOSVersion": "17.0"
+        }
+      ]
+    }
+  ]
+}

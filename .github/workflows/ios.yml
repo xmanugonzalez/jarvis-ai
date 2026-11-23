@@ -37,6 +37,7 @@ jobs:
         run: |
           set -euo pipefail
           app="$RUNNER_TEMP/jarvis-build/Build/Products/Release-iphoneos/JarvisAI.app"
+          python3 .github/scripts/alt_source.py stamp "$app/Info.plist" "$GITHUB_RUN_NUMBER"
           plutil -lint "$app/Info.plist"
           executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Info.plist")"
           xcrun lipo "$app/$executable" -verify_arch arm64
@@ -63,13 +64,15 @@ jobs:
     needs: ipa
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     permissions:
       contents: write
     concurrency:
       group: jarvis-ios-releases
       queue: max
     steps:
+      - uses: actions/checkout@v6
+
       - name: Recuperar el IPA verificado
         uses: actions/download-artifact@v6
         with:
@@ -81,7 +84,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          tag="ios-${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}-${GITHUB_RUN_ID}"
+          # Keep one release per build, including retries of a failed publish.
+          tag="ios-${GITHUB_RUN_NUMBER}.1-${GITHUB_RUN_ID}"
           latest_tag="$(gh api graphql \
             -f query='query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { latestRelease { tagName } } }' \
             -f owner="${GITHUB_REPOSITORY%%/*}" \
@@ -90,15 +94,45 @@ jobs:
 
           # Una ejecución antigua que termine tarde conserva su Release sin desplazar a Latest.
           latest=true
-          if [[ "$latest_tag" =~ ^ios-([0-9]+)\.([0-9]+)-([0-9]+)$ ]] &&
-            (( BASH_REMATCH[1] > GITHUB_RUN_NUMBER ||
-              (BASH_REMATCH[1] == GITHUB_RUN_NUMBER && BASH_REMATCH[2] > GITHUB_RUN_ATTEMPT) )); then
+          if [[ "$latest_tag" =~ ^ios-([0-9]+)\.[0-9]+-[0-9]+$ ]] &&
+            (( BASH_REMATCH[1] > GITHUB_RUN_NUMBER )); then
             latest=false
           fi
 
-          gh release create "$tag" dist/JARVIS-AI.ipa \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
-            --title "JARVIS AI · $tag" \
-            --notes "IPA para iPhone (arm64) sin firma, listo para firmar e instalar con SideStore." \
-            --latest="$latest"
+          if draft="$(gh release view "$tag" --json isDraft --jq '.isDraft' 2>/dev/null)"; then
+            if [[ "$draft" == true ]]; then
+              gh release upload "$tag" dist/JARVIS-AI.ipa --clobber
+              gh release edit "$tag" --draft=false --latest="$latest"
+            fi
+          else
+            gh release create "$tag" dist/JARVIS-AI.ipa \
+              --target "$GITHUB_SHA" \
+              --title "JARVIS AI · $tag" \
+              --notes "IPA para iPhone (arm64) sin firma, listo para firmar e instalar con SideStore." \
+              --latest="$latest"
+          fi
+
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > "$RUNNER_TEMP/jarvis-release.json"
+          gh release download "$tag" --pattern JARVIS-AI.ipa --dir "$RUNNER_TEMP"
+
+      - name: Actualizar la fuente de SideStore
+        run: |
+          set -euo pipefail
+          publisher="$RUNNER_TEMP/jarvis-alt-source.py"
+          cp .github/scripts/alt_source.py "$publisher"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git switch --detach FETCH_HEAD
+            python3 "$publisher" update source.json "$RUNNER_TEMP/JARVIS-AI.ipa" \
+              "$RUNNER_TEMP/jarvis-release.json" "$GITHUB_REPOSITORY"
+            if git diff --quiet -- source.json; then
+              exit 0
+            fi
+            git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit --only source.json -m "chore: actualizar fuente de SideStore"
+            if git push origin HEAD:refs/heads/main; then
+              exit 0
+            fi
+          done
+          exit 1
