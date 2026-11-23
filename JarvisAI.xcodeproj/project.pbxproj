@@ -6,6 +6,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000000000000000000037 /* KokoroModelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000036; };
+		A10000000000000000000039 /* KokoroSpeechOutputService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000038; };
+		A1000000000000000000003B /* KokoroSupport in Resources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000003A; };
+		A1000000000000000000003E /* sherpa-onnx in Frameworks */ = {isa = PBXBuildFile; productRef = A1000000000000000000003D; };
 		A10000000000000000000016 /* JarvisAIApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000015 /* JarvisAIApp.swift */; };
 		A10000000000000000000019 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000018 /* Assets.xcassets */; };
 		A1000000000000000000001B /* AssistantSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001A /* AssistantSettings.swift */; };
@@ -25,6 +29,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A10000000000000000000036 /* KokoroModelStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroModelStore.swift; sourceTree = "<group>"; };
+		A10000000000000000000038 /* KokoroSpeechOutputService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroSpeechOutputService.swift; sourceTree = "<group>"; };
+		A1000000000000000000003A /* KokoroSupport */ = {isa = PBXFileReference; lastKnownFileType = folder; name = KokoroSupport; path = build/KokoroSupport; sourceTree = SOURCE_ROOT; };
 		A10000000000000000000015 /* JarvisAIApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JarvisAIApp.swift; sourceTree = "<group>"; };
 		A10000000000000000000017 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A10000000000000000000018 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -50,7 +57,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-
+				A1000000000000000000003E /* sherpa-onnx in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -61,6 +68,7 @@
 			isa = PBXGroup;
 			children = (
 				A10000000000000000000004 /* JarvisAI */,
+				A1000000000000000000003A /* KokoroSupport */,
 				A10000000000000000000005 /* Products */,
 			);
 			name = "Project";
@@ -97,6 +105,8 @@
 				A10000000000000000000020 /* AudioTestService.swift */,
 				A10000000000000000000022 /* SpeechOutputService.swift */,
 				A10000000000000000000024 /* SpeechRecognitionService.swift */,
+				A10000000000000000000036 /* KokoroModelStore.swift */,
+				A10000000000000000000038 /* KokoroSpeechOutputService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -148,6 +158,7 @@
 			buildRules = ();
 			dependencies = ();
 			name = JarvisAI;
+			packageProductDependencies = (A1000000000000000000003D /* sherpa-onnx */);
 			productName = JarvisAI;
 			productReference = A10000000000000000000006 /* JarvisAI.app */;
 			productType = "com.apple.product-type.application";
@@ -168,6 +179,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (es, Base);
 			mainGroup = A10000000000000000000003;
+			packageReferences = (A1000000000000000000003C /* XCRemoteSwiftPackageReference "sherpa-onnx" */);
 			productRefGroup = A10000000000000000000005 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -181,6 +193,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000000000000000000019 /* Assets.xcassets in Resources */,
+				A1000000000000000000003B /* KokoroSupport in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -198,6 +211,8 @@
 				A10000000000000000000021 /* AudioTestService.swift in Sources */,
 				A10000000000000000000023 /* SpeechOutputService.swift in Sources */,
 				A10000000000000000000025 /* SpeechRecognitionService.swift in Sources */,
+				A10000000000000000000037 /* KokoroModelStore.swift in Sources */,
+				A10000000000000000000039 /* KokoroSpeechOutputService.swift in Sources */,
 				A10000000000000000000027 /* LocalResponses.swift in Sources */,
 				A10000000000000000000029 /* AssistantViewModel.swift in Sources */,
 				A1000000000000000000002B /* ActivityIndicator.swift in Sources */,
@@ -210,6 +225,22 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A1000000000000000000003C /* XCRemoteSwiftPackageReference "sherpa-onnx" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/k2-fsa/sherpa-onnx.git";
+			requirement = { kind = exactVersion; version = 1.13.8; };
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A1000000000000000000003D /* sherpa-onnx */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1000000000000000000003C;
+			productName = "sherpa-onnx";
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A1000000000000000000000C /* Debug */ = {

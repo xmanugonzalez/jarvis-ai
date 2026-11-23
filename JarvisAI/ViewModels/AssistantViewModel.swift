@@ -15,13 +15,19 @@ final class AssistantViewModel: ObservableObject {
     @Published private(set) var notice: AssistantNotice?
     @Published private(set) var recognitionDiagnostic: String?
     @Published var settings: AssistantSettings {
-        didSet { settings.save(to: defaults) }
+        didSet {
+            settings.save(to: defaults)
+            if settings.voiceEngine == .kokoro && oldValue.voiceEngine != .kokoro { prepareKokoro() }
+        }
     }
 
     private let defaults: UserDefaults
     private let audio = AudioSessionService()
     private let recognition = SpeechRecognitionService()
     private let speech: any SpeechSynthesisProvider = SpeechOutputService()
+    let kokoroModel = KokoroModelStore()
+    private let kokoro = KokoroSpeechOutputService()
+    private let synthesisLogger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "JarvisAI", category: "Synthesis")
     private let audioTest = AudioTestService(directory: FileManager.default.temporaryDirectory)
     private var operationID: UUID?
     private var setup: Task<Void, Never>?
@@ -40,6 +46,7 @@ final class AssistantViewModel: ObservableObject {
 
     func foregrounded() {
         refreshVoices()
+        if settings.voiceEngine == .kokoro { prepareKokoro() }
         if isIdle { route = audio.snapshot() }
     }
 
@@ -81,10 +88,28 @@ final class AssistantViewModel: ObservableObject {
     }
 
     func previewVoice(_ voiceID: String? = nil) {
+        preview(engine: .apple, voiceID: voiceID)
+    }
+
+    func previewKokoro() {
+        preview(engine: .kokoro, voiceID: nil)
+    }
+
+    func prepareKokoro() {
+        kokoro.prepare(model: kokoroModel.installedFolder)
+    }
+
+    func removeKokoroModel() {
+        guard isIdle else { return }
+        kokoro.purge()
+        kokoroModel.remove()
+    }
+
+    private func preview(engine: VoiceEngine, voiceID: String?) {
         begin { model, _ in
             try await model.activate()
-            model.speak("Buenas noches, señor. JARVIS está completamente operativo. ¿En qué puedo ayudarlo?",
-                        previewVoiceID: voiceID)
+            model.speak("Buenas noches, señor. JARVIS está operativo.",
+                        engine: engine, previewVoiceID: voiceID)
         }
     }
 
@@ -228,7 +253,8 @@ final class AssistantViewModel: ObservableObject {
         speak(response)
     }
 
-    private func speak(_ text: String, previewVoiceID: String? = nil) {
+    private func speak(_ text: String, engine: VoiceEngine? = nil, previewVoiceID: String? = nil,
+                       fallbackNotice: String? = nil) {
         let current = audio.snapshot()
         guard !current.outputs.isEmpty else {
             end(AssistantError.noOutput.localizedDescription)
@@ -241,10 +267,35 @@ final class AssistantViewModel: ObservableObject {
         }
         let id = operationID
         state = .speaking
+        if (engine ?? settings.voiceEngine) == .kokoro {
+            let fallback: (Error) -> Void = { [weak self] error in
+                guard let self, self.operationID == id else { return }
+                self.synthesisLogger.error("Kokoro: \(error.localizedDescription, privacy: .public)")
+                self.speak(text, engine: .apple, fallbackNotice: "Se usó la voz de Apple. \(error.localizedDescription)")
+            }
+            do {
+                try kokoro.speak(text, settings: settings, model: kokoroModel.installedFolder) { [weak self] error in
+                    guard let self, self.operationID == id else { return }
+                    if let error {
+                        fallback(error)
+                    } else {
+                        self.end()
+                    }
+                }
+                setDeadline(.seconds(30)) {
+                    $0.kokoro.cancel()
+                    fallback(KokoroError.timeout)
+                }
+            } catch {
+                fallback(error)
+            }
+            return
+        }
+
         do {
             try speech.speak(text, settings: settings, previewVoiceID: previewVoiceID) { [weak self] success in
                 guard let self, self.operationID == id else { return }
-                self.end(success ? nil : "La respuesta hablada se interrumpió.")
+                self.end(success ? fallbackNotice : "La respuesta hablada se interrumpió.")
             }
             setDeadline(.seconds(20)) { $0.end("La respuesta hablada no se completó. Comprueba la voz y la salida de audio.") }
         } catch {
@@ -269,6 +320,7 @@ final class AssistantViewModel: ObservableObject {
         deadline?.cancel()
         deadline = nil
         recognition.cancel()
+        kokoro.cancel()
         audioTest.cancel()
         speech.cancel()
         audio.deactivate()
@@ -312,6 +364,7 @@ final class AssistantViewModel: ObservableObject {
             route = AudioRoute()
             end("iOS reinició el audio. Vuelve a iniciar la prueba o la escucha.")
             speech.reset()
+            kokoro.purge()
         }
     }
 }

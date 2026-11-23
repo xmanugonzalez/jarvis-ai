@@ -28,6 +28,22 @@ El runner estándar es gratuito en repositorios públicos. Si el repositorio es 
 2. Con SideStore configurado, activa la VPN que requiere tu instalación. Abre **My Apps**, toca **+** y selecciona `JARVIS-AI.ipa`. Si iOS solicita activar Modo de desarrollador, sigue el aviso. Renueva la firma desde **My Apps** antes de la fecha que indique SideStore.
 3. Si ya tienes [LiveContainer](https://livecontainer.github.io/docs/installation), puedes importar el IPA desde su botón **+**. Haz la primera prueba de permisos y audio con la instalación directa de SideStore. El comportamiento dentro de LiveContainer queda por comprobar.
 
+## Voz local con Kokoro
+
+En **Configuración → Kokoro · español**, descarga el modelo una vez (unos 142 MB). Después elige **Kokoro · em_alex** en **Motor de voz**. Los botones de demostración de Kokoro y Apple reproducen la misma frase. La descarga usa Hugging Face y la síntesis se ejecuta en el iPhone. En esa misma sección puedes cancelar la descarga o eliminar los archivos instalados.
+
+La integración usa [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) v1.0 multilingüe INT8 mediante [sherpa-onnx 1.13.8](https://github.com/k2-fsa/sherpa-onnx/tree/v1.13.8). La voz `em_alex` es el hablante 29 y el fonetizador usa `es`. Se usan dos hilos de CPU y se reutiliza el motor cargado. Si Kokoro falla o pasan diez segundos sin audio generado, JARVIS pasa a la voz de Apple en la sesión actual. [Mapa oficial de voces](https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/kokoro.html)
+
+GitHub Actions prepara los datos del fonetizador y compila los binarios estáticos de iPhone mediante Swift Package Manager. Para abrir el proyecto y compilar en una Mac, ejecuta primero `bash .github/scripts/prepare_kokoro.sh` desde la raíz. La compilación incluye los avisos de Kokoro, sherpa-onnx, ONNX Runtime y eSpeak NG. Los binarios de sherpa-onnx usados aquí incluyen eSpeak NG bajo GPL. Consulta la información de código fuente y licencias de esa dependencia al distribuir el IPA. [Inventario de sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx/issues/4053)
+
+### Prueba de Kokoro en el iPhone
+
+1. Actualiza JARVIS desde SideStore, descarga el modelo y escucha las dos demostraciones con el altavoz interno.
+2. Una vez descargado, prueba la demostración de Kokoro sin internet. Selecciónalo como motor y comprueba la secuencia completa de escuchar y responder. Apple Speech puede necesitar conexión si no has activado su modo local.
+3. Repite la secuencia con el Y12 Pro en HFP. Elimina los archivos de Kokoro y comprueba que JARVIS vuelve a usar Apple al responder.
+
+En Windows se verificaron los hashes del modelo y la generación local de audio no silencioso a 24 kHz con `em_alex` y el idioma `es`. Los binarios estáticos de sherpa-onnx y ONNX Runtime contienen código Mach-O para iPhone arm64 con mínimo iOS 13. La compilación con Xcode y las pruebas de sonido, latencia y Bluetooth en el iPhone 11 Pro Max quedan pendientes.
+
 ## Probar con el Y12 Pro
 
 1. Empareja y conecta el intercomunicador en **Ajustes → Bluetooth** de iOS. En JARVIS, abre **Bluetooth → Comprobar ruta**. Si iOS expone una ruta manos libres, comprueba que el casco aparece como entrada y salida. Una ruta de solo salida no confirma que el micrófono del casco esté disponible.

@@ -17,6 +17,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Preparar datos del fonetizador de Kokoro
+        run: bash .github/scripts/prepare_kokoro.sh
+
       - name: Compilar para iPhone (arm64)
         run: |
           set -euo pipefail
@@ -41,6 +44,8 @@ jobs:
           plutil -lint "$app/Info.plist"
           executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Info.plist")"
           xcrun lipo "$app/$executable" -verify_arch arm64
+          test -f "$app/KokoroSupport/espeak-ng-data/es_dict"
+          test ! -e "$app/KokoroSupport/model.int8.onnx"
           test ! -e "$app/embedded.mobileprovision"
           output="$GITHUB_WORKSPACE/dist"
           stage="$(mktemp -d "$RUNNER_TEMP/jarvis-ipa.XXXXXX")"

@@ -15,11 +15,17 @@ struct SettingsView: View {
                         }
                     }
                     .pickerStyle(.navigationLink)
+                    Picker("Motor de voz", selection: $model.settings.voiceEngine) {
+                        ForEach(VoiceEngine.allCases) { engine in
+                            Text(engine.title).tag(engine)
+                        }
+                    }
+                    .pickerStyle(.navigationLink)
                     NavigationLink {
                         VoiceSelectionView(model: model)
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Voz")
+                            Text("Voz de Apple")
                             Text(selectedVoiceTitle)
                                 .font(.subheadline)
                                 .foregroundStyle(Palette.muted)
@@ -30,16 +36,18 @@ struct SettingsView: View {
                     voiceSlider("Velocidad", value: $model.settings.speechRate, range: AssistantSettings.rateRange)
                     voiceSlider("Volumen", value: $model.settings.speechVolume, range: AssistantSettings.volumeRange)
                     Button { model.previewVoice() } label: {
-                        Label("Probar voz y ajustes", systemImage: "speaker.wave.2")
+                        Label("Escuchar demostración de Apple", systemImage: "speaker.wave.2")
                             .frame(minHeight: 44)
                     }
                 } header: {
                     Text("Voz e idioma")
                 } footer: {
-                    Text("El modo automático prefiere una voz masculina y, entre las voces de ese tipo, la mayor calidad disponible.")
+                    Text("El tono y el selector de voces se aplican a Apple. La velocidad y el volumen se aplican a ambos motores.")
                 }
                 .disabled(!model.isIdle)
                 .listRowBackground(Palette.surface)
+
+                KokoroSettingsSection(model: model, store: model.kokoroModel)
 
                 Section {
                     Toggle("Preferir manos libres", isOn: $model.settings.preferBluetooth)
@@ -101,6 +109,48 @@ struct SettingsView: View {
                 .accessibilityLabel(title)
                 .accessibilityValue(percent)
                 .frame(minHeight: 44)
+        }
+    }
+}
+
+private struct KokoroSettingsSection: View {
+    @ObservedObject var model: AssistantViewModel
+    @ObservedObject var store: KokoroModelStore
+
+    var body: some View {
+        Section {
+            switch store.status {
+            case .ready:
+                Label("Modelo descargado", systemImage: "checkmark.circle")
+            case .downloading:
+                ProgressView("Descargando Kokoro")
+                Button("Cancelar descarga", action: store.cancelDownload)
+            case .missing, .failed:
+                if case .failed(let message) = store.status {
+                    Text(message).font(.footnote).foregroundStyle(Palette.muted)
+                }
+                if store.installedFolder == nil {
+                    Button("Descargar Kokoro (142 MB)", action: store.download)
+                        .disabled(!model.isIdle)
+                }
+            }
+            if store.installedFolder != nil {
+                Button(action: model.previewKokoro) {
+                    Label("Escuchar demostración de Kokoro", systemImage: "speaker.wave.2")
+                        .frame(minHeight: 44)
+                }
+                .disabled(!model.isIdle)
+                Button("Eliminar archivos de Kokoro", role: .destructive, action: model.removeKokoroModel)
+                    .disabled(!model.isIdle)
+            }
+        } header: {
+            Text("Kokoro · español")
+        } footer: {
+            Text("La voz em_alex se genera en el iPhone. La primera carga puede tardar. JARVIS usa Apple si Kokoro no está disponible o tarda demasiado.")
+        }
+        .listRowBackground(Palette.surface)
+        .onChange(of: store.status) { _, status in
+            if status == .ready { model.prepareKokoro() }
         }
     }
 }

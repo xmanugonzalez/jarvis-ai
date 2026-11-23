@@ -16,6 +16,13 @@ enum SpanishLocale: String, CaseIterable, Identifiable {
     }
 }
 
+enum VoiceEngine: String, CaseIterable, Identifiable {
+    case apple, kokoro
+
+    var id: String { rawValue }
+    var title: String { self == .apple ? "Apple" : "Kokoro · em_alex" }
+}
+
 struct AssistantSettings {
     static let rateRange = 0.35...0.60
     static let pitchRange = 0.85...1.12
@@ -23,6 +30,7 @@ struct AssistantSettings {
 
     var language: SpanishLocale = .mexico
     var voiceID = ""
+    var voiceEngine: VoiceEngine = .apple
     var speechRate = 0.46
     var speechPitch = 0.93
     var speechVolume = 0.90
@@ -33,6 +41,7 @@ struct AssistantSettings {
     init(defaults: UserDefaults) {
         language = SpanishLocale(rawValue: defaults.string(forKey: "language") ?? "") ?? .mexico
         voiceID = defaults.string(forKey: "voiceID") ?? ""
+        voiceEngine = VoiceEngine(rawValue: defaults.string(forKey: "voiceEngine") ?? "") ?? .apple
         speechRate = Self.savedValue("speechRate", defaults, Self.rateRange, fallback: speechRate)
         speechPitch = Self.savedValue("speechPitch", defaults, Self.pitchRange, fallback: speechPitch)
         speechVolume = Self.savedValue("speechVolume", defaults, Self.volumeRange, fallback: speechVolume)
@@ -44,6 +53,7 @@ struct AssistantSettings {
     func save(to defaults: UserDefaults) {
         defaults.set(language.rawValue, forKey: "language")
         defaults.set(voiceID, forKey: "voiceID")
+        defaults.set(voiceEngine.rawValue, forKey: "voiceEngine")
         defaults.set(speechRate, forKey: "speechRate")
         defaults.set(speechPitch, forKey: "speechPitch")
         defaults.set(speechVolume, forKey: "speechVolume")
