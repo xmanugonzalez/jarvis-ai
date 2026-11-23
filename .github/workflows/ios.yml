@@ -1,0 +1,59 @@
+name: Compilar IPA de JARVIS AI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    timeout-minutes: 20
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Compilar para iPhone (arm64)
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcodebuild \
+            -project JarvisAI.xcodeproj \
+            -scheme JarvisAI \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/jarvis-build" \
+            ARCHS=arm64 \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+
+      - name: Empaquetar y comprobar el IPA
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/jarvis-build/Build/Products/Release-iphoneos/JarvisAI.app"
+          plutil -lint "$app/Info.plist"
+          executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Info.plist")"
+          xcrun lipo -verify_arch arm64 "$app/$executable"
+          test ! -e "$app/embedded.mobileprovision"
+          output="$GITHUB_WORKSPACE/dist"
+          stage="$(mktemp -d "$RUNNER_TEMP/jarvis-ipa.XXXXXX")"
+          mkdir -p "$output" "$stage/Payload"
+          ditto "$app" "$stage/Payload/JarvisAI.app"
+          cd "$stage"
+          /usr/bin/zip -q -r "$output/JARVIS-AI.ipa" Payload
+          /usr/bin/unzip -tq "$output/JARVIS-AI.ipa"
+          /usr/bin/unzip -Z1 "$output/JARVIS-AI.ipa" "Payload/JarvisAI.app/$executable"
+
+      - name: Publicar artefacto
+        uses: actions/upload-artifact@v6
+        with:
+          name: JARVIS-AI-iOS
+          path: dist/JARVIS-AI.ipa
+          if-no-files-found: error
+          compression-level: 0
