@@ -11,6 +11,14 @@
       "iconURL": "https://raw.githubusercontent.com/xmanugonzalez/jarvis-ai/main/JarvisAI/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
       "versions": [
         {
+          "version": "0.1.5",
+          "buildVersion": "1.0.5",
+          "date": "2026-11-23T01:48:38Z",
+          "downloadURL": "https://github.com/xmanugonzalez/jarvis-ai/releases/download/ios-5.1-45096458674/JARVIS-AI.ipa",
+          "size": 379769,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "0.1.0",
           "buildVersion": "1",
           "date": "2026-11-23T01:29:13Z",
