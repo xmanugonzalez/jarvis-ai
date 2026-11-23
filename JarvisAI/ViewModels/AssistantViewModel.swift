@@ -8,7 +8,7 @@ final class AssistantViewModel: ObservableObject {
     @Published private(set) var state: AssistantState = .ready {
         didSet {
             guard state != oldValue else { return }
-            wakeLogger.info("Estado: \(state.title, privacy: .public). Micrófono: \(microphoneActive, privacy: .public)")
+            wakeLogger.info("Estado: \(self.state.title, privacy: .public). Micrófono: \(self.microphoneActive, privacy: .public)")
         }
     }
     @Published private(set) var jarvisActive = false
@@ -399,7 +399,7 @@ final class AssistantViewModel: ObservableObject {
         turnMonitor?.cancel()
         recognition.complete()
         if let began = turnBegan {
-            wakeLogger.info("Reconocimiento: \(Self.seconds(began.duration(to: clock.now)), privacy: .public) s.")
+            wakeLogger.info("Reconocimiento: \(Self.seconds(began.duration(to: self.clock.now)), privacy: .public) s.")
         }
         guard !currentTranscript.isEmpty else {
             if jarvisActive { waitForWake() } else { end("No se detectó voz. Vuelve a intentarlo.") }
